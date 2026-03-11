@@ -2,12 +2,16 @@
 # ============================================================================
 #  Claude Code + Buddy Launcher
 #  Opens Claude CLI with an animated buddy in a TOP tmux pane
+#  Supports multiple parallel sessions — each buddy tracks its own Claude
 # ============================================================================
 
 SESSION_NAME="claude-buddy-$$"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BUDDY_SCRIPT="$SCRIPT_DIR/claude-buddy-animation.sh"
-BUDDY_HEIGHT=7  # 6 lines for mascot + 1 line buffer
+BUDDY_HEIGHT=6  # 5 lines for mascot + 1 line buffer
+
+# Pass current working directory so buddy tracks the right project
+export PROJECT_DIR="$PWD"
 
 # Fallback: check common install locations
 if [[ ! -f "$BUDDY_SCRIPT" ]]; then
@@ -15,7 +19,7 @@ if [[ ! -f "$BUDDY_SCRIPT" ]]; then
 fi
 if [[ ! -f "$BUDDY_SCRIPT" ]]; then
     echo "Error: claude-buddy-animation.sh not found"
-    echo "Run the install script first: ./install.sh"
+    echo "Run: curl -fsSL https://raw.githubusercontent.com/anthropics/claude-code-buddy/main/install.sh | bash"
     exit 1
 fi
 
@@ -36,8 +40,9 @@ done
 # ──────────────────────────────────────────────────────────────
 if [[ -n "$TMUX" ]]; then
     # Split current pane: create a pane ABOVE for the buddy
-    tmux split-window -b -v -l "$BUDDY_HEIGHT" "bash '$BUDDY_SCRIPT'"
-    # Fix border colors — make both active and inactive the same orange
+    tmux split-window -b -v -l "$BUDDY_HEIGHT" \
+        "PROJECT_DIR='$PROJECT_DIR' bash '$BUDDY_SCRIPT'"
+    # Fix border colors — uniform orange, no half-grey/half-orange
     tmux set-option pane-border-style "fg=colour209"
     tmux set-option pane-active-border-style "fg=colour209"
     tmux set-option pane-border-lines simple
@@ -50,10 +55,10 @@ fi
 #  Fresh tmux session: buddy on top, Claude on bottom
 # ──────────────────────────────────────────────────────────────
 
-# Create session running the buddy animation
+# Create session running the buddy animation (pass PROJECT_DIR)
 tmux new-session -d -s "$SESSION_NAME" \
     -x "$(tput cols)" -y "$(tput lines)" \
-    "bash '$BUDDY_SCRIPT'"
+    "PROJECT_DIR='$PROJECT_DIR' bash '$BUDDY_SCRIPT'"
 
 # Split below for Claude CLI — Claude gets most of the space
 tmux split-window -v -t "$SESSION_NAME:0.0" \
